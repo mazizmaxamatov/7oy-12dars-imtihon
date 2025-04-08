@@ -21,6 +21,8 @@ const Teachers = () => {
   });
 
   const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editingKey, setEditingKey] = useState(null); 
 
   const handleLogout = () => {
     logout();
@@ -29,43 +31,53 @@ const Teachers = () => {
 
   const showModal = () => {
     setIsModalVisible(true);
+    setEditMode(false); 
+    setFormData({ fullName: "", email: "", age: "", about: "" });
   };
-
   const handleCancel = () => {
     setIsModalVisible(false);
+    setEditingKey(null);
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSave = () => {
-    setTeachers([...teachers, { ...formData, key: teachers.length }]);
+    if (editMode) {
+      const updated = teachers.map((t) =>
+        t.key === editingKey ? { ...formData, key: editingKey } : t
+      );
+      setTeachers(updated);
+    } else {
+      setTeachers([...teachers, { ...formData, key: teachers.length }]);
+    }
+
     setIsModalVisible(false);
-    setFormData({
-      fullName: "",
-      email: "",
-      age: "",
-      about: "",
-    });
+    setEditingKey(null);
+    setFormData({ fullName: "", email: "", age: "", about: "" });
   };
 
-  const handleSearchChange = (e) => {
-    setSearchText(e.target.value);
+  const handleSearchChange = (e) => setSearchText(e.target.value);
+
+  const handleTeacherClick = (teacher) => setSelectedTeacher(teacher);
+
+  const handleDelete = (key) => {
+    setTeachers((prev) => prev.filter((teacher) => teacher.key !== key));
   };
 
-  const handleTeacherClick = (teacher) => {
-    setSelectedTeacher(teacher);
+  const handleEdit = (teacher) => {
+    setFormData(teacher);
+    setEditMode(true);
+    setEditingKey(teacher.key);
+    setIsModalVisible(true);
   };
 
   const filteredTeachers = teachers.filter(
-    (teacher) =>
-      teacher.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
-      teacher.email.toLowerCase().includes(searchText.toLowerCase())
+    (t) =>
+      t.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
+      t.email.toLowerCase().includes(searchText.toLowerCase())
   );
 
   const columns = [
@@ -77,60 +89,51 @@ const Teachers = () => {
       title: "Actions",
       key: "actions",
       render: (_, record) => (
-        <Button type="link" onClick={() => handleDelete(record.key)}>
-          Delete
-        </Button>
+        <>
+          <Button type="link" onClick={() => handleEdit(record)}>
+            Edit
+          </Button>
+          <Button type="link" onClick={() => handleDelete(record.key)} danger>
+            Delete
+          </Button>
+        </>
       ),
     },
   ];
-
-  const handleDelete = (key) => {
-    setTeachers(teachers.filter((teacher) => teacher.key !== key));
-  };
 
   return (
     <div className="flex justify-between gap-6">
       <Sidebar />
 
-      <div className="mt-[5px] w-[100%] flex flex-col gap-6 p-6 relative">
+      <div className="flex flex-col gap-6 p-6 w-full">
+      
         <div className="flex justify-end items-center gap-2">
           <BellOutlined className="text-2xl" />
-          <Button type="" className="border-none font-semibold font-[Kumbh Sans]" onClick={handleLogout}>
+          <Button onClick={handleLogout} className="border-none font-semibold">
             Log out
           </Button>
         </div>
 
         <div className="flex justify-between items-center">
-          <h1 className="font-medium font-[Kumbh Sans] text-[20px] leading-none tracking-[0%] text-[rgba(79,79,79,1)]">
-            Teachers
-          </h1>
-          <Button
-            type="primary"
-            className="bg-blue-500 px-[14px] py-[12px] text-[rgba(255,255,255,1)] font-semibold font-[Kumbh Sans] text-[14px] leading-none tracking-[0%] text-center"
-            onClick={showModal}
-          >
-            Add Teachers
+          <h1 className="text-[20px] font-medium text-gray-700">Teachers</h1>
+          <Button type="primary" className="bg-blue-500" onClick={showModal}>
+            Add Teacher
           </Button>
         </div>
 
         <div className="relative mb-6">
-          <input
-            type="text"
-            placeholder="Search for a student by name or email"
+          <Input
+            placeholder="Search for a teacher by name or email"
             value={searchText}
             onChange={handleSearchChange}
-            className="w-full px-4 py-4 border rounded-lg outline-none border-none bg-[#FCFAFA] pl-10"
+            prefix={<SearchOutlined className="text-gray-500" />}
+            className="bg-[#FCFAFA]"
           />
-          <SearchOutlined className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" />
         </div>
 
         {filteredTeachers.length === 0 ? (
-          <div className="w-[100%] h-[500px] bg-[#FCFAFA] flex flex-col justify-center text-center">
-            <img
-              className="w-[340px] h-[255px] my-[5px] font-[Kumbh Sans] mx-auto"
-              src={notif}
-              alt="Notification"
-            />
+          <div className="w-full h-[500px] bg-[#FCFAFA] flex flex-col justify-center items-center text-center">
+            <img src={notif} alt="Notification" className="w-[340px] h-[255px]" />
             <h1>No Teachers at this time</h1>
             <p>Teachers will appear here after they enroll in your school.</p>
           </div>
@@ -138,6 +141,7 @@ const Teachers = () => {
           <Table
             dataSource={filteredTeachers}
             columns={columns}
+            pagination={false} 
             rowKey="email"
             onRow={(record) => ({
               onClick: () => handleTeacherClick(record),
@@ -149,7 +153,7 @@ const Teachers = () => {
       {selectedTeacher && (
         <Modal
           title="Teacher Information"
-          visible={true}
+          open={true}
           onCancel={() => setSelectedTeacher(null)}
           footer={null}
         >
@@ -163,75 +167,46 @@ const Teachers = () => {
       )}
 
       <Modal
-        visible={isModalVisible}
+        open={isModalVisible}
         onCancel={handleCancel}
         footer={null}
-        width="100vw"
-        height="100vh"
-        bodyStyle={{ padding: 0 }}
-        style={{ top: 0, left: 0, right: 0, bottom: 0, padding: 0 }}
-        destroyOnClose={true}
+        destroyOnClose
       >
-        <div className="flex w-full h-full">
-          <div className="flex flex-col w-full ml-6 overflow-auto">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold mb-4">Add Teacher</h2>
-              <Button
-                type="primary"
-                className="mt-4 py-[12px] px-[14px]"
-                onClick={handleSave}
-              >
-                Save
-              </Button>
-            </div>
-
-            <div className="">
-              <div>
-                <label className="block">Full Name</label>
-                <Input
-                  placeholder="Full Name"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleInputChange}
-                  className="w-full h-[42px]"
-                />
-              </div>
-
-              <div>
-                <label className="block">Email Address</label>
-                <Input
-                  placeholder="Email Address"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full h-[42px]"
-                />
-              </div>
-
-              <div>
-                <label className="block">Age</label>
-                <Input  
-                  placeholder="Age"
-                  name="number"
-                  value={formData.number}
-                  onChange={handleInputChange}
-                  className="w-full h-[42px]"
-                />
-              </div>
-
-              <div className="col-span-2">
-                <label className="block">About</label>
-                <Input.TextArea
-                  placeholder="About"
-                  name="about"
-                  value={formData.about}
-                  onChange={handleInputChange}
-                  className="w-full"
-                  rows={4}
-                />
-              </div>
-            </div>
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold">
+              {editMode ? "Edit Teacher" : "Add Teacher"}
+            </h2>
+            <Button type="primary" onClick={handleSave}>
+              Save
+            </Button>
           </div>
+
+          <Input
+            placeholder="Full Name"
+            name="fullName"
+            value={formData.fullName}
+            onChange={handleInputChange}
+          />
+          <Input
+            placeholder="Email Address"
+            name="email"
+            value={formData.email}
+            onChange={handleInputChange}
+          />
+          <Input
+            placeholder="Age"
+            name="age"
+            value={formData.age}
+            onChange={handleInputChange}
+          />
+          <Input.TextArea
+            placeholder="About"
+            name="about"
+            value={formData.about}
+            onChange={handleInputChange}
+            rows={4}
+          />
         </div>
       </Modal>
     </div>
